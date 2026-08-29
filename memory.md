@@ -46,15 +46,22 @@ Every command invocation pattern supported by CLI-KDG:
 | `cli_kdg/reporter.py` | Formatter generating human-readable observation reports | Locked (v1.1) |
 | `cli_kdg/__main__.py` | Main module execution entry point (`python3 -m cli_kdg`) | Locked (v1.1) |
 | `cli_kdg.py` | Single-file executable entry point (`chmod +x cli_kdg.py`) | Locked (v1.1) |
-| `run_tests.py` | Automated test suite (14/14 tests passing) | Locked (v1.1) |
+| `run_tests.py` | Automated test suite (21/21 tests passing: 14 unit, 2 dependency audit, 5 CLI integration) | Updated |
+| `.github/workflows/ci.yml` | GitHub Actions CI matrix (Python 3.11, 3.12, 3.13) | Locked |
+| `.github/workflows/release.yml` | GitHub Actions release packaging & checksum publisher | Locked |
 | `README.md` | Complete system documentation & exhaustive command reference | Updated |
 | `memory.md` | Continuous memory tracking & architecture state log | Updated for v1.2 |
 
 ---
 
-## Transition Log — Phase v1.2 Setup
+## Transition Log — Phase v1.2 Initiation
 
-- **Phase State**: Initiated v1.2 implementation readiness.
-- **Baseline Preserved**: v1.1 foundation, POSIX process execution engine, zero third-party constraint, test suite, and existing command behaviors preserved without modification.
-- **Exhaustive Documentation Update**: Added complete command reference matrix for all CLI-KDG invocation patterns to both `README.md` and `memory.md`.
-- **Status**: Ready to receive v1.2 implementation specifications from user.
+- **v1.1.0 Release Baseline Tagged**: Tag `v1.1.0` applied to baseline commit (`0e96351`) and pushed to GitHub `origin`.
+- **Branch Strategy**: Branch `develop/v1.2` established and synced with `main`.
+- **CI/CD Pipeline Activated**: Added `.github/workflows/ci.yml` testing Python 3.11, 3.12, and 3.13 on `ubuntu-latest`.
+- **Zero-Third-Party Dependency Audit**: Implemented AST static analysis (`TestDependencyPolicy`) verifying zero `site-packages` or third-party module imports and zero external package manifests.
+- **Integration Test Suite**: Expanded test suite to 21 tests covering direct executable script execution, module invocation (`python3 -m cli_kdg`), short/long timeout flags, option separators, and non-traceback error handling.
+- **Automated Release Packaging**: Added `.github/workflows/release.yml` to package tarball/zip archives and publish SHA256 checksums upon tag release.
+- **Verification**: Local and remote release bundle and test execution verified cleanly.
+- **Status**: Completed items 1-9. Commencing v1.2 architecture design phase.
+
