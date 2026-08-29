@@ -284,4 +284,135 @@ STDERR:
 DISCOVERY STATUS: SUCCESS
 ```
 
+---
+
+## CLI-KDG v1.3 — Snapshot, Replay & Behavioral Regression Engine
+
+CLI-KDG v1.3 introduces historical test observation persistence (`snapshot`) and exact behavioral regression comparison (`replay`) on top of the v1.1 process engine and v1.2 discovery parser.
+
+### 1. Architectural Concept
+
+Instead of regenerating test cases before comparison, v1.3 freezes historical `TestCase` observations into a versioned JSON snapshot, replays the exact same test cases against a later version of the target CLI, and compares observable behavior field-by-field.
+
+```text
+SNAPSHOT (v1.2 discovery → JSON format version 1)
+   │
+   ├── later version of target CLI
+   │
+REPLAY (execute exact stored TestCase[] objects)
+   │
+COMPARE (field-by-field discrepancy analysis)
+   │
+REGRESSION REPORT (UNCHANGED / CHANGED / FAILED)
+```
+
+### 2. Exhaustive v1.3 Command Matrix & Syntax Patterns
+
+Every invocation pattern supported by `snapshot` and `replay` subcommands:
+
+| Invocation Pattern | Command Syntax Example | Description |
+| :--- | :--- | :--- |
+| **Snapshot Creation (Default Output)** | `python3 cli_kdg.py snapshot <target> [target_args]` | Runs discovery on `<target>`, collects observations, and saves to `snapshot.json`. |
+| **Snapshot Custom Output (`--output`)** | `python3 cli_kdg.py snapshot --output v1_base.json <target>` | Saves baseline snapshot to specified output file path (`v1_base.json`). |
+| **Snapshot Short Flag (`-o`)** | `python3 cli_kdg.py snapshot -o v1_base.json <target>` | Short flag alias for custom output file destination. |
+| **Snapshot Direct Execution** | `./cli_kdg.py snapshot -o v1_base.json <target>` | Direct executable script invocation for snapshot creation. |
+| **Snapshot Python Module** | `python3 -m cli_kdg snapshot -o v1_base.json <target>` | Module invocation of snapshot creation engine. |
+| **Replay Baseline Snapshot** | `python3 cli_kdg.py replay v1_base.json <target_v2>` | Replays stored historical test cases against `<target_v2>` and reports behavioral changes. |
+| **Replay with Timeout Limit** | `python3 cli_kdg.py replay --timeout 5.0 v1_base.json <target>` | Enforces a `5.0` second limit per replayed test case execution. |
+| **Replay Direct Execution** | `./cli_kdg.py replay v1_base.json <target_v2>` | Direct executable script invocation of replay engine. |
+| **Replay Python Module** | `python3 -m cli_kdg replay v1_base.json <target_v2>` | Module invocation of replay engine. |
+| **Automated Test Suite** | `python3 run_tests.py` | Runs full 35-test zero-dependency automated unit, AST import audit, and integration test suite. |
+
+### 3. Versioned Snapshot Schema Format (`snapshot.py`)
+
+Snapshots are serialized in human-readable JSON format with explicit format versioning (`version: 1`):
+
+```json
+{
+  "version": 1,
+  "cli_kdg_version": "1.3.0",
+  "created_at": "2026-08-29T14:16:49Z",
+  "target": "python3",
+  "target_args": ["fixtures/cli_target.py"],
+  "observations": [
+    {
+      "arguments": ["--count", "0"],
+      "category": "OPTION_VALID_VAL",
+      "reason": "Verify numeric option '--count' with zero boundary value",
+      "exit_code": 0,
+      "stdout": "Executed. Output: None, Count: 0",
+      "stderr": "",
+      "runtime_ms": 15.49,
+      "termination_type": "EXITED"
+    }
+  ]
+}
+```
+
+### 4. Behavioral Comparison & Runtime Invariance (`replay.py`)
+
+During `replay`, baseline observations and current execution results are compared across observable fields:
+
+- **`exit_code`**: Process exit status code comparison.
+- **`status`**: Success classification (`is_success()`) comparison.
+- **`stdout`**: Captured standard output text comparison.
+- **`stderr`**: Captured standard error text comparison.
+- **`termination_type`**: POSIX process termination classification.
+
+> [!NOTE]
+> **Runtime Invariance**: Execution duration (`runtime_ms`) is metadata and is **never** used to trigger behavioral regressions.
+
+### 5. Classification Outcomes
+
+- **`UNCHANGED`**: All observable behavior fields match the baseline snapshot.
+- **`CHANGED`**: Observable exit code, stdout, stderr, or status differs from baseline.
+- **`FAILED`**: Target executable failed to start or raised execution errors.
+
+### 6. Snapshot & Replay Command Example
+
+```bash
+# 1. Create baseline snapshot of v1 CLI target
+python3 cli_kdg.py snapshot --output v1_snap.json python3 fixtures/cli_target.py
+
+# 2. Replay snapshot against v2 CLI target to detect regressions
+python3 cli_kdg.py replay v1_snap.json python3 fixtures/cli_target_v2.py
+```
+
+**Replay Output**:
+```text
+CLI-KDG Behavioral Regression & Replay Report (v1.3)
+==================================================
+Snapshot Path:        v1_snap.json
+Replay Target:        python3 fixtures/cli_target_v2.py
+Total Test Cases:     12
+Unchanged Behavior:   4
+Changed Behavior:     8
+Execution Failures:   0
+==================================================
+
+Replay Test Case Details:
+--------------------------------------------------
+[10/12] Classification: CHANGED
+Category: OPTION_VALID_VAL
+Command:  python3 fixtures/cli_target_v2.py --count 0
+Reason:   Verify numeric option '--count' with zero boundary value
+Outcome:  Exit 1 | Runtime: 15.12 ms | Status: EXITED
+Behavioral Discrepancies:
+  • Field 'exit_code':
+      Baseline: 0
+      Current:  1
+  • Field 'status':
+      Baseline: SUCCESS
+      Current:  FAILURE
+  • Field 'stdout':
+      Baseline: Executed. Output: None, Count: 0
+      Current:  <empty>
+  • Field 'stderr':
+      Baseline: <empty>
+      Current:  Error: '--count' must be strictly positive.
+--------------------------------------------------
+REPLAY RESULT: BEHAVIORAL_REGRESSIONS_DETECTED
+```
+
+
 

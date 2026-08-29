@@ -1,93 +1,64 @@
 """
-cli_kdg.parser
-~~~~~~~~~~~~~~
-
-Manual CLI argument parser for CLI-KDG (v1.1 & v1.2).
-Parses command-line tokens without external libraries or argparse dependencies.
-
-Supported Syntax:
-    cli-kdg run [--timeout SECONDS] <target> [target arguments...]
-    cli-kdg discover [--timeout SECONDS] <target> [target arguments...]
+cli_kdg.parser — Manual Command Line Argument Parser
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Parses sys.argv for run, discover, snapshot, and replay subcommands without argparse.
 """
 
 from typing import List, Tuple, Optional
 from cli_kdg.errors import CLKDGUserError
 
-VALID_SUBCOMMANDS = {"run", "discover"}
+VALID_SUBCOMMANDS = {"run", "discover", "snapshot", "replay"}
 
 
-def parse_args(args: List[str]) -> Tuple[str, str, List[str], Optional[float]]:
-    """
-    Manually parses command line argument vector for CLI-KDG.
-
-    Args:
-        args: List of argument strings (excluding script/executable name).
-
-    Returns:
-        Tuple containing:
-            - subcommand (str): Subcommand action ('run' or 'discover').
-            - target (str): Executable target path or command name.
-            - target_args (List[str]): List of arguments to pass to target.
-            - timeout (Optional[float]): Timeout limit in seconds, or None if unspecified.
-
-    Raises:
-        CLKDGUserError: If syntax is invalid, missing subcommand/target, or malformed flags.
-    """
+def parse_args(args: List[str]) -> Tuple[str, str, List[str], Optional[float], Optional[str]]:
+    """Manually parses argument vector into (subcommand, target, target_args, timeout, output_file)."""
     if not args:
-        raise CLKDGUserError(
-            "Missing subcommand. Usage: cli-kdg <run|discover> [--timeout SECONDS] <target> [target arguments...]"
-        )
+        raise CLKDGUserError("Missing subcommand. Usage: cli-kdg <run|discover|snapshot|replay> [options] <target> [args...]")
 
     subcommand = args[0]
     if subcommand not in VALID_SUBCOMMANDS:
-        raise CLKDGUserError(
-            f"Unknown subcommand '{subcommand}'. Supported subcommands: 'run', 'discover'. "
-            "Usage: cli-kdg <run|discover> [--timeout SECONDS] <target> [target arguments...]"
-        )
+        raise CLKDGUserError(f"Unknown subcommand '{subcommand}'. Supported: 'run', 'discover', 'snapshot', 'replay'.")
 
-    index = 1
-    timeout: Optional[float] = None
-    n = len(args)
+    index, timeout, output_file, n = 1, None, None, len(args)
 
-    # Parse optional CLI-KDG flags before target command
     while index < n:
         token = args[index]
-        if token == "--timeout" or token == "-t":
+        if token in ["--timeout", "-t"]:
             if index + 1 >= n:
                 raise CLKDGUserError("Flag '--timeout' requires a numeric seconds value.")
-            timeout_str = args[index + 1]
             try:
-                timeout = float(timeout_str)
+                timeout = float(args[index + 1])
                 if timeout <= 0:
                     raise ValueError()
             except ValueError:
-                raise CLKDGUserError(f"Invalid timeout value '{timeout_str}'. Must be a positive number.")
+                raise CLKDGUserError(f"Invalid timeout value '{args[index + 1]}'. Must be a positive number.")
             index += 2
         elif token.startswith("--timeout="):
-            val_str = token.split("=", 1)[1]
             try:
-                timeout = float(val_str)
+                timeout = float(token.split("=", 1)[1])
                 if timeout <= 0:
                     raise ValueError()
             except ValueError:
-                raise CLKDGUserError(f"Invalid timeout value '{val_str}'. Must be a positive number.")
+                raise CLKDGUserError(f"Invalid timeout value '{token.split('=', 1)[1]}'. Must be a positive number.")
+            index += 1
+        elif token in ["--output", "-o"]:
+            if index + 1 >= n:
+                raise CLKDGUserError("Flag '--output' requires a output file path.")
+            output_file = args[index + 1]
+            index += 2
+        elif token.startswith("--output="):
+            output_file = token.split("=", 1)[1]
             index += 1
         elif token == "--":
-            # Explicit separator denoting start of target command
             index += 1
             break
         elif token.startswith("-"):
             raise CLKDGUserError(f"Unknown CLI-KDG option '{token}'.")
         else:
-            # First non-flag token represents target executable
             break
 
     if index >= n:
-        raise CLKDGUserError(
-            f"Missing target executable. Usage: cli-kdg {subcommand} [--timeout SECONDS] <target> [target arguments...]"
-        )
+        msg = "Missing snapshot file and target executable." if subcommand == "replay" else "Missing target executable."
+        raise CLKDGUserError(f"{msg} Usage: cli-kdg {subcommand} [options] <target> [target arguments...]")
 
-    target = args[index]
-    target_args = args[index + 1 :]
-
-    return subcommand, target, target_args, timeout
+    return subcommand, args[index], args[index + 1:], timeout, output_file

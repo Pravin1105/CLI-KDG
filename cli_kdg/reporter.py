@@ -1,24 +1,14 @@
 """
-cli_kdg.reporter
-~~~~~~~~~~~~~~~~
-
-Human-readable report generator for CLI-KDG execution outcomes.
-Formats raw ExecutionResult instances into clean, deterministic terminal reports.
+cli_kdg.reporter — Human-Readable Terminal Report Generators
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Formats raw execution outcomes, discovery models, snapshots, and replay diffs.
 """
 
-from cli_kdg.models import ExecutionResult, TerminationType
+from cli_kdg.models import ExecutionResult, TerminationType, DiscoveryResult, Snapshot, ReplayResult
 
 
 def format_report(result: ExecutionResult) -> str:
-    """
-    Formats an ExecutionResult into a human-readable observation report.
-
-    Args:
-        result (ExecutionResult): Observed result object.
-
-    Returns:
-        str: Formatted multi-line text report.
-    """
+    """Formats an ExecutionResult into a human-readable observation report."""
     cmd_line = f"{result.command} {' '.join(result.arguments)}".strip()
     exit_str = str(result.exit_code) if result.exit_code is not None else "<none>"
 
@@ -33,10 +23,10 @@ def format_report(result: ExecutionResult) -> str:
     else:
         status_str = "FAILURE"
 
-    stdout_content = result.stdout.strip() if result.stdout.strip() else "<empty>"
-    stderr_content = result.stderr.strip() if result.stderr.strip() else "<empty>"
+    stdout_content = result.stdout.strip() or "<empty>"
+    stderr_content = result.stderr.strip() or "<empty>"
 
-    report_lines = [
+    lines = [
         "CLI-KDG v1.1",
         "────────────────────────",
         f"Command: {cmd_line}",
@@ -50,31 +40,15 @@ def format_report(result: ExecutionResult) -> str:
         stderr_content,
         ""
     ]
-
     if result.error:
-        report_lines.extend([f"ERROR: {result.error}", ""])
+        lines.extend([f"ERROR: {result.error}", ""])
 
-    report_lines.append(f"STATUS: {status_str}")
+    lines.append(f"STATUS: {status_str}")
+    return "\n".join(lines)
 
-    return "\n".join(report_lines)
 
-
-# =============================================================================
-# v1.2 DISCOVERY REPORT FORMATTER
-# =============================================================================
-
-def format_discovery_report(result: "DiscoveryResult") -> str:
-    """
-    Formats a DiscoveryResult instance into a structured human-readable terminal report.
-
-    Args:
-        result (DiscoveryResult): Observed discovery outcome.
-
-    Returns:
-        str: Formatted multi-line text report.
-    """
-    from cli_kdg.models import DiscoveryResult
-
+def format_discovery_report(result: DiscoveryResult) -> str:
+    """Formats a DiscoveryResult into a structured discovery terminal report."""
     target_cmd = f"{result.target} {' '.join(result.target_args)}".strip()
 
     lines = [
@@ -85,21 +59,12 @@ def format_discovery_report(result: "DiscoveryResult") -> str:
     ]
 
     if result.discovery_error:
-        lines.extend([
-            f"Discovery Status:     FAILED",
-            f"Error:                {result.discovery_error}",
-            "=================================================="
-        ])
+        lines.extend(["Discovery Status:     FAILED", f"Error:                {result.discovery_error}", "=================================================="])
         return "\n".join(lines)
 
-    opts_count = len(result.model.options) if result.model else 0
-    cases_count = len(result.test_cases)
-    lines.extend([
-        f"Discovered Options:   {opts_count}",
-        f"Generated Test Cases: {cases_count}",
-        "==================================================",
-        ""
-    ])
+    opts_cnt = len(result.model.options) if result.model else 0
+    cases_cnt = len(result.test_cases)
+    lines.extend([f"Discovered Options:   {opts_cnt}", f"Generated Test Cases: {cases_cnt}", "==================================================", ""])
 
     if result.model and result.model.options:
         lines.append("Discovered Option Specifications:")
@@ -115,24 +80,80 @@ def format_discovery_report(result: "DiscoveryResult") -> str:
         status_label = "SUCCESS" if res.is_success() else res.termination_type
 
         lines.extend([
-            f"[{idx}/{cases_count}] Category: {case.category}",
+            f"[{idx}/{cases_cnt}] Category: {case.category}",
             f"Command:  {cmd_str}",
             f"Reason:   {case.reason}",
-            f"Outcome:  Exit {res.exit_code if res.exit_code is not None else '<none>'} | "
-            f"Runtime: {res.runtime_ms:.2f} ms | Status: {status_label}",
+            f"Outcome:  Exit {res.exit_code if res.exit_code is not None else '<none>'} | Runtime: {res.runtime_ms:.2f} ms | Status: {status_label}",
         ])
-
         if res.stdout.strip():
-            lines.append("STDOUT:")
-            lines.append(f"  {res.stdout.strip()[:200]}")
+            lines.extend(["STDOUT:", f"  {res.stdout.strip()[:200]}"])
         if res.stderr.strip():
-            lines.append("STDERR:")
-            lines.append(f"  {res.stderr.strip()[:200]}")
-
+            lines.extend(["STDERR:", f"  {res.stderr.strip()[:200]}"])
         lines.append("--------------------------------------------------")
 
-    overall_status = "SUCCESS" if result.is_success() else "COMPLETED_WITH_FAILURES"
-    lines.append(f"DISCOVERY STATUS: {overall_status}")
-
+    overall = "SUCCESS" if result.is_success() else "COMPLETED_WITH_FAILURES"
+    lines.append(f"DISCOVERY STATUS: {overall}")
     return "\n".join(lines)
 
+
+def format_snapshot_report(snapshot: Snapshot, filepath: str) -> str:
+    """Formats Snapshot creation outcome into a terminal report."""
+    target_cmd = f"{snapshot.target} {' '.join(snapshot.target_args)}".strip()
+    return "\n".join([
+        "CLI-KDG Behavioral Snapshot Report (v1.3)",
+        "==================================================",
+        f"Snapshot Path:        {filepath}",
+        f"Format Version:       {snapshot.version}",
+        f"Engine Version:       {snapshot.cli_kdg_version}",
+        f"Timestamp:            {snapshot.created_at}",
+        f"Target Command:       {target_cmd}",
+        f"Persisted Cases:      {len(snapshot.observations)}",
+        "==================================================",
+        f"SNAPSHOT CREATED SUCCESSFULLY: {filepath}"
+    ])
+
+
+def format_replay_report(result: ReplayResult) -> str:
+    """Formats ReplayResult into a behavioral regression report."""
+    target_cmd = f"{result.target} {' '.join(result.target_args)}".strip()
+    total = len(result.case_results)
+    unchanged = result.count_by_classification("UNCHANGED")
+    changed = result.count_by_classification("CHANGED")
+    failed = result.count_by_classification("FAILED")
+
+    lines = [
+        "CLI-KDG Behavioral Regression & Replay Report (v1.3)",
+        "==================================================",
+        f"Snapshot Path:        {result.snapshot_path}",
+        f"Replay Target:        {target_cmd}",
+        f"Total Test Cases:     {total}",
+        f"Unchanged Behavior:   {unchanged}",
+        f"Changed Behavior:     {changed}",
+        f"Execution Failures:   {failed}",
+        "==================================================",
+        "",
+        "Replay Test Case Details:",
+        "--------------------------------------------------"
+    ]
+
+    for idx, cr in enumerate(result.case_results, start=1):
+        res = cr.current_res
+        cmd_str = f"{res.command} {' '.join(res.arguments)}".strip()
+        lines.extend([
+            f"[{idx}/{total}] Classification: {cr.classification}",
+            f"Category: {cr.test_case.category}",
+            f"Command:  {cmd_str}",
+            f"Reason:   {cr.test_case.reason}",
+            f"Outcome:  Exit {res.exit_code if res.exit_code is not None else '<none>'} | Runtime: {res.runtime_ms:.2f} ms | Status: {'SUCCESS' if res.is_success() else res.termination_type}",
+        ])
+        if cr.classification == "CHANGED":
+            lines.append("Behavioral Discrepancies:")
+            for d in cr.diffs:
+                lines.extend([f"  • Field '{d.field}':", f"      Baseline: {d.baseline_val}", f"      Current:  {d.current_val}"])
+        elif cr.classification == "FAILED":
+            lines.append(f"Execution Error: {res.error or 'Failed to start executable'}")
+        lines.append("--------------------------------------------------")
+
+    overall = "UNCHANGED (No Regressions Detected)" if result.is_success() else "BEHAVIORAL_REGRESSIONS_DETECTED"
+    lines.append(f"REPLAY RESULT: {overall}")
+    return "\n".join(lines)
