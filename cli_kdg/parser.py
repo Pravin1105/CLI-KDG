@@ -2,43 +2,47 @@
 cli_kdg.parser
 ~~~~~~~~~~~~~~
 
-Manual CLI argument parser for CLI-KDG.
+Manual CLI argument parser for CLI-KDG (v1.1 & v1.2).
 Parses command-line tokens without external libraries or argparse dependencies.
 
 Supported Syntax:
     cli-kdg run [--timeout SECONDS] <target> [target arguments...]
+    cli-kdg discover [--timeout SECONDS] <target> [target arguments...]
 """
 
 from typing import List, Tuple, Optional
 from cli_kdg.errors import CLKDGUserError
 
+VALID_SUBCOMMANDS = {"run", "discover"}
 
-def parse_args(args: List[str]) -> Tuple[str, List[str], Optional[float]]:
+
+def parse_args(args: List[str]) -> Tuple[str, str, List[str], Optional[float]]:
     """
-    Manually parses command line argument vector.
+    Manually parses command line argument vector for CLI-KDG.
 
     Args:
-        args: List of argument strings (excluding the script/executable name).
+        args: List of argument strings (excluding script/executable name).
 
     Returns:
         Tuple containing:
+            - subcommand (str): Subcommand action ('run' or 'discover').
             - target (str): Executable target path or command name.
-            - target_args (List[str]): List of arguments to pass to the target.
+            - target_args (List[str]): List of arguments to pass to target.
             - timeout (Optional[float]): Timeout limit in seconds, or None if unspecified.
 
     Raises:
-        CLKDGUserError: If syntax is invalid, missing target, or malformed flags.
+        CLKDGUserError: If syntax is invalid, missing subcommand/target, or malformed flags.
     """
     if not args:
         raise CLKDGUserError(
-            "Missing subcommand. Usage: cli-kdg run [--timeout SECONDS] <target> [target arguments...]"
+            "Missing subcommand. Usage: cli-kdg <run|discover> [--timeout SECONDS] <target> [target arguments...]"
         )
 
-    # First positional token must be the 'run' action command
-    if args[0] != "run":
+    subcommand = args[0]
+    if subcommand not in VALID_SUBCOMMANDS:
         raise CLKDGUserError(
-            f"Unknown subcommand '{args[0]}'. Only 'run' is supported. "
-            "Usage: cli-kdg run [--timeout SECONDS] <target> [target arguments...]"
+            f"Unknown subcommand '{subcommand}'. Supported subcommands: 'run', 'discover'. "
+            "Usage: cli-kdg <run|discover> [--timeout SECONDS] <target> [target arguments...]"
         )
 
     index = 1
@@ -80,10 +84,10 @@ def parse_args(args: List[str]) -> Tuple[str, List[str], Optional[float]]:
 
     if index >= n:
         raise CLKDGUserError(
-            "Missing target executable. Usage: cli-kdg run [--timeout SECONDS] <target> [target arguments...]"
+            f"Missing target executable. Usage: cli-kdg {subcommand} [--timeout SECONDS] <target> [target arguments...]"
         )
 
     target = args[index]
     target_args = args[index + 1 :]
 
-    return target, target_args, timeout
+    return subcommand, target, target_args, timeout

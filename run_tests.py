@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 """
-CLI-KDG Zero-Dependency Test Suite
-==================================
+CLI-KDG Zero-Dependency Test Suite (v1.1 & v1.2)
+=================================================
 
 Automated tests for CLI-KDG using standard library unittest framework.
 Validates:
-- Manual CLI argument parsing
+- Manual CLI argument parsing (run and discover)
 - POSIX process lifecycle execution (fork, execvp, waitpid)
 - Isolated STDOUT & STDERR pipe capture
 - Pipe buffer deadlock protection on large output
 - Monotonic timeout deadline execution & child process reaping
 - Controlled error formatting without uncaught tracebacks
+- Zero third-party dependency policy AST audit
+- Automated CLI --help interrogation & option parsing (v1.2)
+- Deterministic test case generation & execution (v1.2)
 """
 
 import sys
@@ -19,9 +22,12 @@ import unittest
 
 from cli_kdg.parser import parse_args
 from cli_kdg.process import execute_target
-from cli_kdg.reporter import format_report
+from cli_kdg.reporter import format_report, format_discovery_report
 from cli_kdg.models import TerminationType
 from cli_kdg.errors import CLKDGUserError, CLKDGExecutionError
+from cli_kdg.help_parser import parse_help_text
+from cli_kdg.generator import generate_test_cases
+from cli_kdg.discover import discover_target
 
 
 PYTHON_BIN = sys.executable
@@ -32,19 +38,29 @@ class TestParser(unittest.TestCase):
     """Unit tests for manual CLI argument parsing."""
 
     def test_valid_parse(self):
-        target, target_args, timeout = parse_args(["run", "python3", "app.py", "--arg1"])
+        sub, target, target_args, timeout = parse_args(["run", "python3", "app.py", "--arg1"])
+        self.assertEqual(sub, "run")
         self.assertEqual(target, "python3")
         self.assertEqual(target_args, ["app.py", "--arg1"])
         self.assertIsNone(timeout)
 
+    def test_discover_parse(self):
+        sub, target, target_args, timeout = parse_args(["discover", "python3", "app.py"])
+        self.assertEqual(sub, "discover")
+        self.assertEqual(target, "python3")
+        self.assertEqual(target_args, ["app.py"])
+        self.assertIsNone(timeout)
+
     def test_timeout_flag_parsing(self):
-        target, target_args, timeout = parse_args(["run", "--timeout", "2.5", "python3", "app.py"])
+        sub, target, target_args, timeout = parse_args(["run", "--timeout", "2.5", "python3", "app.py"])
+        self.assertEqual(sub, "run")
         self.assertEqual(target, "python3")
         self.assertEqual(target_args, ["app.py"])
         self.assertEqual(timeout, 2.5)
 
     def test_timeout_equals_syntax(self):
-        target, target_args, timeout = parse_args(["run", "--timeout=10", "ls", "-la"])
+        sub, target, target_args, timeout = parse_args(["run", "--timeout=10", "ls", "-la"])
+        self.assertEqual(sub, "run")
         self.assertEqual(target, "ls")
         self.assertEqual(target_args, ["-la"])
         self.assertEqual(timeout, 10.0)
@@ -179,7 +195,6 @@ class TestDependencyPolicy(unittest.TestCase):
                     except ImportError:
                         self.fail(f"Could not import module '{mod_name}' referenced in {filepath}")
 
-
     def test_no_external_manifests(self):
         """Verify absence of third-party package installation manifests."""
         project_root = os.path.dirname(os.path.abspath(__file__))
@@ -233,6 +248,88 @@ class TestCLIIntegration(unittest.TestCase):
         self.assertNotIn("Traceback (most recent call last)", res.stderr)
 
 
+class TestHelpParser(unittest.TestCase):
+    """Unit tests for v1.2 CLI help text parser."""
+
+    def test_parse_help_text(self):
+        sample_help = """
+        Usage: app [OPTIONS]
+        Options:
+          -v, --verbose        Enable verbose output
+          -o, --output FILE    Write output to specified file
+          --count INTEGER      Specify loop iteration count
+        """
+        model = parse_help_text(sample_help)
+        self.assertEqual(len(model.options), 3)
+
+        verbose_opt = next((o for o in model.options if o.long_name == "--verbose"), None)
+        self.assertIsNotNone(verbose_opt)
+        self.assertEqual(verbose_opt.short_name, "-v")
+        self.assertFalse(verbose_opt.requires_value)
+
+        output_opt = next((o for o in model.options if o.long_name == "--output"), None)
+        self.assertIsNotNone(output_opt)
+        self.assertTrue(output_opt.requires_value)
+        self.assertEqual(output_opt.value_hint, "FILE")
+
+        count_opt = next((o for o in model.options if o.long_name == "--count"), None)
+        self.assertIsNotNone(count_opt)
+        self.assertTrue(count_opt.requires_value)
+        self.assertEqual(count_opt.value_hint, "INTEGER")
+
+
+class TestGenerator(unittest.TestCase):
+    """Unit tests for v1.2 deterministic test case generator."""
+
+    def test_generate_test_cases(self):
+        sample_help = """
+        Options:
+          -v, --verbose        Enable verbose output
+          --count INTEGER      Specify loop iteration count
+        """
+        model = parse_help_text(sample_help)
+        cases = generate_test_cases(model)
+
+        self.assertGreaterEqual(len(cases), 4)
+
+        help_case = next((c for c in cases if c.category == "HELP"), None)
+        self.assertIsNotNone(help_case)
+        self.assertEqual(help_case.arguments, ["--help"])
+
+        unknown_case = next((c for c in cases if c.category == "UNKNOWN_OPTION"), None)
+        self.assertIsNotNone(unknown_case)
+
+        flag_case = next((c for c in cases if c.category == "FLAG_VALID"), None)
+        self.assertIsNotNone(flag_case)
+        self.assertIn("--verbose", flag_case.arguments)
+
+        numeric_missing = next((c for c in cases if c.category == "OPTION_MISSING_VAL"), None)
+        self.assertIsNotNone(numeric_missing)
+        self.assertIn("--count", numeric_missing.arguments)
+
+
+class TestDiscoverIntegration(unittest.TestCase):
+    """End-to-end integration tests for v1.2 discover subcommand."""
+
+    def test_discover_target_execution(self):
+        fixture = os.path.join(FIXTURES_DIR, "cli_target.py")
+        res = discover_target(PYTHON_BIN, [fixture])
+
+        self.assertTrue(res.is_success())
+        self.assertGreaterEqual(len(res.model.options), 3)
+        self.assertGreaterEqual(len(res.test_cases), 4)
+        self.assertEqual(len(res.test_cases), len(res.case_results))
+
+    def test_discover_cli_script_entrypoint(self):
+        script_path = os.path.join(os.path.dirname(__file__), "cli_kdg.py")
+        fixture = os.path.join(FIXTURES_DIR, "cli_target.py")
+        res = execute_target(PYTHON_BIN, [script_path, "discover", PYTHON_BIN, fixture])
+
+        self.assertTrue(res.is_success())
+        self.assertIn("CLI-KDG Discovery & Test Execution Report (v1.2)", res.stdout)
+        self.assertIn("Discovered Option Specifications:", res.stdout)
+        self.assertIn("DISCOVERY STATUS: SUCCESS", res.stdout)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
-
