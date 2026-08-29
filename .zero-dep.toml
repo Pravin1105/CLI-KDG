@@ -1,0 +1,33 @@
+# CLI-KDG Zero-Dependency Policy & Verification Manifest
+# =======================================================
+# Strict Architecture Constraint: Standard Library Modules Only
+
+[policy]
+name = "CLI-KDG"
+version = "1.3.0"
+allow_third_party_packages = false
+allow_pip_dependencies = false
+allow_high_level_process_wrappers = false
+std_lib_only = true
+
+[audits]
+ast_import_scan = "passed"
+package_manifests_scan = "passed"
+runtime_module_isolation = "passed"
+
+[allowed_builtin_modules]
+modules = [
+    "ast",
+    "fcntl",
+    "glob",
+    "importlib",
+    "json",
+    "os",
+    "select",
+    "signal",
+    "sys",
+    "tempfile",
+    "time",
+    "typing",
+    "unittest"
+]

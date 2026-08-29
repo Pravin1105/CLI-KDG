@@ -1,0 +1,79 @@
+======================================================================
+CLI-KDG ZERO-DEPENDENCY EMPIRICAL AUDIT & PROOF LOG
+======================================================================
+
+Python Binary: /Library/Developer/CommandLineTools/usr/bin/python3
+Python Version: 3.9.6
+Platform: darwin
+
+--- 1. AST SOURCE FILE IMPORT SCAN ---
+[PASS] cli_kdg.py: Imports: ['cli_kdg', 'sys']
+[PASS] cli_kdg/__init__.py: Imports: []
+[PASS] cli_kdg/__main__.py: Imports: ['cli_kdg', 'sys']
+[PASS] cli_kdg/discover.py: Imports: ['cli_kdg', 'typing']
+[PASS] cli_kdg/errors.py: Imports: []
+[PASS] cli_kdg/generator.py: Imports: ['cli_kdg', 'typing']
+[PASS] cli_kdg/help_parser.py: Imports: ['cli_kdg', 'typing']
+[PASS] cli_kdg/models.py: Imports: ['time', 'typing']
+[PASS] cli_kdg/parser.py: Imports: ['cli_kdg', 'typing']
+[PASS] cli_kdg/process.py: Imports: ['cli_kdg', 'fcntl', 'os', 'select', 'signal', 'sys', 'time', 'typing']
+[PASS] cli_kdg/replay.py: Imports: ['cli_kdg', 'typing']
+[PASS] cli_kdg/reporter.py: Imports: ['cli_kdg']
+[PASS] cli_kdg/snapshot.py: Imports: ['cli_kdg', 'json', 'os', 'typing']
+[PASS] run_tests.py: Imports: ['ast', 'cli_kdg', 'glob', 'importlib', 'os', 'sys', 'tempfile', 'unittest']
+
+--- 2. PACKAGE MANIFEST ABSENCE SCANS ---
+Manifest requirements.txt    : ABSENT (PASSED)
+Manifest Pipfile             : ABSENT (PASSED)
+Manifest Pipfile.lock        : ABSENT (PASSED)
+Manifest pyproject.toml      : ABSENT (PASSED)
+Manifest setup.py            : ABSENT (PASSED)
+Manifest setup.cfg           : ABSENT (PASSED)
+Manifest poetry.lock         : ABSENT (PASSED)
+
+--- 3. AUTOMATED TEST SUITE RUNNER OUTPUT ---
+
+test_cli_controlled_error_handling (__main__.TestCLIIntegration) ... ok
+test_cli_executable_direct (__main__.TestCLIIntegration) ... ok
+test_cli_module_invocation (__main__.TestCLIIntegration) ... ok
+test_cli_option_separator (__main__.TestCLIIntegration) ... ok
+test_cli_short_timeout_flag (__main__.TestCLIIntegration) ... ok
+test_ast_import_audit (__main__.TestDependencyPolicy) ... ok
+test_no_external_manifests (__main__.TestDependencyPolicy) ... ok
+test_discover_cli_script_entrypoint (__main__.TestDiscoverIntegration) ... ok
+test_discover_target_execution (__main__.TestDiscoverIntegration) ... ok
+test_generate_test_cases (__main__.TestGenerator) ... ok
+test_parse_help_text (__main__.TestHelpParser) ... ok
+test_discover_parse (__main__.TestParser) ... ok
+test_invalid_subcommand (__main__.TestParser) ... ok
+test_invalid_timeout_value (__main__.TestParser) ... ok
+test_missing_subcommand (__main__.TestParser) ... ok
+test_missing_target (__main__.TestParser) ... ok
+test_replay_parse (__main__.TestParser) ... ok
+test_snapshot_parse (__main__.TestParser) ... ok
+test_timeout_equals_syntax (__main__.TestParser) ... ok
+test_timeout_flag_parsing (__main__.TestParser) ... ok
+test_valid_parse (__main__.TestParser) ... ok
+test_failure_fixture (__main__.TestProcessExecution) ... ok
+test_large_output_fixture (__main__.TestProcessExecution) ... ok
+test_mixed_output_fixture (__main__.TestProcessExecution) ... ok
+test_nonexistent_binary (__main__.TestProcessExecution) ... ok
+test_success_fixture (__main__.TestProcessExecution) ... ok
+test_timeout_execution (__main__.TestProcessExecution) ... ok
+test_exit_code_discrepancy (__main__.TestReplayComparator) ... ok
+test_runtime_invariance_comparison (__main__.TestReplayComparator) ... ok
+test_replay_regression_detection (__main__.TestReplayIntegration) ... ok
+test_snapshot_and_replay_unchanged (__main__.TestReplayIntegration) ... ok
+test_reporter_formatting (__main__.TestReporter) ... ok
+test_missing_snapshot_file (__main__.TestSnapshotManager) ... ok
+test_snapshot_create_save_load (__main__.TestSnapshotManager) ... ok
+test_unsupported_snapshot_version (__main__.TestSnapshotManager) ... ok
+
+----------------------------------------------------------------------
+Ran 35 tests in 2.368s
+
+OK
+
+
+--- 4. AUDIT VERDICT ---
+VERDICT: ZERO THIRD-PARTY DEPENDENCIES VERIFIED & AUDITED SUCCESSFULLY.
