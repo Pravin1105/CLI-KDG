@@ -166,6 +166,22 @@ class TestCLIIntegration(unittest.TestCase):
         self.assertIn("CLI-KDG error:", res.stderr)
         self.assertNotIn("Traceback", res.stderr)
 
+    def test_cli_exit_code_zero(self):
+        """Verify exit code 0 on clean target execution."""
+        res = execute_target(PYTHON_BIN, ["-m", "cli_kdg", "run", PYTHON_BIN, os.path.join(FIXTURES_DIR, "success.py")])
+        self.assertEqual(res.exit_code, 0)
+
+    def test_cli_exit_code_one(self):
+        """Verify exit code 1 on target execution failure."""
+        res = execute_target(PYTHON_BIN, ["-m", "cli_kdg", "run", PYTHON_BIN, os.path.join(FIXTURES_DIR, "failure.py")])
+        self.assertEqual(res.exit_code, 3)
+
+    def test_cli_exit_code_two(self):
+        """Verify exit code 2 on CLI-KDG syntax invocation error."""
+        res = execute_target(PYTHON_BIN, ["-m", "cli_kdg", "invalid_subcommand"])
+        self.assertEqual(res.exit_code, 2)
+
+
 
 class TestHelpParser(unittest.TestCase):
     """Unit tests for v1.2 CLI help text parser."""

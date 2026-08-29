@@ -1,25 +1,22 @@
 # Memory State — CLI-KDG
 
 ## Project Identity
-- **Name**: CLI-KDG (CLI Known Deterministic Generator / Execution Engine)
-- **Previous Identifier**: CLIProbe (Fully Deprecated & Replaced across all files & docs)
-- **Current Version Phase**: **v1.2 Initiation Phase** (v1.1 baseline fully locked & verified)
+- **Name**: CLI-KDG (CLI Known Deterministic Generator & Behavioral Regression Engine)
+- **Current Version**: **v1.3.0 Release Milestone**
 - **Architectural Paradigm**: Zero third-party packages, pure Python standard library + POSIX low-level process primitives (`fork`, `execvp`, `pipe`, `dup2`, `waitpid`, `kill`, `select`, `fcntl`).
 
 ---
 
 ## Technical Constraints & Senior Developer Invariants
-1. **Zero External Dependencies**: Strictly no `pip` packages, third-party libraries, or high-level process wrappers (`subprocess` module).
-2. **Minimal & Readable Codebase**: Clean, modular structure with human-interpretable docstrings detailing every low-level POSIX call.
-3. **Controlled Error Paths**: Normal CLI user syntax errors and binary start failures produce human-readable error reports with zero uncaught Python tracebacks.
-4. **Pipe Deadlock Protection**: STDOUT and STDERR pipes configured in non-blocking mode via `fcntl` and multiplexed via `select.select()` to prevent deadlocks on large I/O outputs.
-5. **Deterministic Child Reaping**: All processes (normal exit, signal terminated, or timed out) are strictly reaped using `os.waitpid()` to prevent zombie process creation.
+1. **Zero External Dependencies**: Strictly no `pip` packages, third-party libraries, or high-level process wrappers. Verified by AST import audit.
+2. **Minimal & Readable Codebase**: Clean, modular structure with human-interpretable code and comments.
+3. **Controlled Error Paths**: Normal CLI user syntax errors and start failures produce human-readable error reports with zero uncaught Python tracebacks.
+4. **Pipe Deadlock Protection**: STDOUT and STDERR pipes configured in non-blocking mode via `fcntl` and multiplexed via `select.select()`.
+5. **Deterministic Child Reaping**: All processes are strictly reaped using `os.waitpid()` to prevent zombie process creation.
 
 ---
 
 ## Complete CLI-KDG Command Matrix
-
-Every command invocation pattern supported by CLI-KDG (v1.1, v1.2 & v1.3):
 
 | Invocation Form | Syntax Pattern | Example Command |
 | :--- | :--- | :--- |
@@ -40,6 +37,10 @@ Every command invocation pattern supported by CLI-KDG (v1.1, v1.2 & v1.3):
 
 | File | Purpose | Status |
 | :--- | :--- | :--- |
+| `.zero-dep.toml` | Policy manifest declaring zero external package policy | Created |
+| `deps-proof.txt` | Empirical audit report proving zero third-party dependencies | Created |
+| `LICENSE` | MIT License open-source copyright notice | Created |
+| `CLI-KDG_DOCUMENTATION.md` | Standalone comprehensive documentation (workflow, change logs, limitations) | Created |
 | `cli_kdg/__init__.py` | Package identity & version | Locked (v1.1) |
 | `cli_kdg/models.py` | Dataclasses (`ExecutionResult`, `CLIModel`, `Snapshot`, `TestObservation`, `ReplayResult`) | Updated (v1.3) |
 | `cli_kdg/errors.py` | Custom error exceptions (`CLKDGUserError`, `CLKDGExecutionError`) | Locked (v1.1) |
@@ -53,7 +54,7 @@ Every command invocation pattern supported by CLI-KDG (v1.1, v1.2 & v1.3):
 | `cli_kdg/reporter.py` | Formatter generating observation, discovery, snapshot & replay reports | Updated (v1.3) |
 | `cli_kdg/__main__.py` | Main module execution entry point routing all subcommands | Updated (v1.3) |
 | `cli_kdg.py` | Single-file executable entry point (`chmod +x cli_kdg.py`) | Locked (v1.1) |
-| `run_tests.py` | Automated test suite (35/35 tests passing: unit, AST audit, integration) | Updated (v1.3) |
+| `run_tests.py` | Automated test suite (38/38 tests passing: unit, AST audit, exit code, integration) | Updated (v1.3) |
 | `fixtures/cli_target.py` | Mock CLI target v1 fixture for discovery & snapshot testing | Created (v1.2) |
 | `fixtures/cli_target_v2.py` | Mock CLI target v2 fixture for replay regression testing | Created (v1.3) |
 | `.github/workflows/ci.yml` | GitHub Actions CI matrix (Python 3.11, 3.12, 3.13) | Locked |
@@ -63,15 +64,11 @@ Every command invocation pattern supported by CLI-KDG (v1.1, v1.2 & v1.3):
 
 ---
 
-## Transition Log — Phase v1.3 Completion
+## Transition Log — Phase v1.3 Release Verification Complete
 
-- **v1.3 Objective Achieved**: Implemented historical test observation serialization (`snapshot`), versioned format validation (`version: 1`), stored test case re-execution (`replay`), and field-by-field behavioral regression analysis.
-- **Zero Third-Party Dependency Invariant Enforced**: Built strictly with Python standard library modules (`json`, `sys`, `os`, `time`, `select`, `fcntl`, `ast`). AST import auditor verified zero `site-packages` imports.
-- **Runtime Invariance Verified**: Duration (`runtime_ms`) is treated as metadata and never triggers behavioral regression diffs.
-- **Controlled Error Handling**: Corrupt JSON, missing snapshot files, or unsupported format versions produce clean `CLKDGUserError` output without Python tracebacks.
-- **Test Suite Expansion**: Total passing tests increased from 26 to **35 tests**.
-- **Documentation Standards**: Preserved v1.1 and v1.2 documentation in `README.md` without modification; appended `## CLI-KDG v1.3` section.
-- **Status**: Completed v1.3 implementation, verified locally, ready for version control branch commit and push.
-
-
-
+- **Zero-Dependency Audit**: Verified zero external package manifests and generated `deps-proof.txt` empirical audit log.
+- **Zero-Dependency Policy Manifest**: Added `.zero-dep.toml`.
+- **System Documentation File**: Created `CLI-KDG_DOCUMENTATION.md` detailing system workflows, version history, change logs, one-line build commands, and explicit limitations.
+- **CLI Exit Code Verification**: Added explicit tests for exit codes `0`, `1`, `2` into `run_tests.py` (38/38 tests passing).
+- **License**: Created `LICENSE` (MIT License).
+- **Clean Checkout Build Verification**: Verified clean checkout tarball creation and test execution (`git archive`).
