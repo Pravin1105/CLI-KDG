@@ -131,5 +131,108 @@ class TestReporter(unittest.TestCase):
         self.assertIn("STATUS: SUCCESS", report)
 
 
+class TestDependencyPolicy(unittest.TestCase):
+    """Audit tests enforcing strict zero third-party dependency policy."""
+
+    def test_ast_import_audit(self):
+        """Parse AST of all Python source files to verify only standard library modules are imported."""
+        import ast
+        import glob
+        import importlib
+
+        project_root = os.path.dirname(os.path.abspath(__file__))
+        source_files = glob.glob(os.path.join(project_root, "cli_kdg", "*.py"))
+        source_files.append(os.path.join(project_root, "cli_kdg.py"))
+        source_files.append(os.path.join(project_root, "run_tests.py"))
+
+        internal_modules = {"cli_kdg"}
+
+        for filepath in source_files:
+            with open(filepath, "r", encoding="utf-8") as f:
+                tree = ast.parse(f.read(), filename=filepath)
+
+            for node in ast.walk(tree):
+                imported_mods = []
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        imported_mods.append(alias.name.split(".")[0])
+                elif isinstance(node, ast.ImportFrom):
+                    if node.module and node.level == 0:
+                        imported_mods.append(node.module.split(".")[0])
+
+                for mod_name in imported_mods:
+                    if mod_name in internal_modules:
+                        continue
+                    try:
+                        mod = importlib.import_module(mod_name)
+                        mod_file = getattr(mod, "__file__", "") or ""
+                        self.assertNotIn(
+                            "site-packages",
+                            mod_file,
+                            f"Forbidden third-party site-packages import '{mod_name}' detected in {filepath}"
+                        )
+                        self.assertNotIn(
+                            "dist-packages",
+                            mod_file,
+                            f"Forbidden third-party dist-packages import '{mod_name}' detected in {filepath}"
+                        )
+                    except ImportError:
+                        self.fail(f"Could not import module '{mod_name}' referenced in {filepath}")
+
+
+    def test_no_external_manifests(self):
+        """Verify absence of third-party package installation manifests."""
+        project_root = os.path.dirname(os.path.abspath(__file__))
+        forbidden_files = ["requirements.txt", "Pipfile", "Pipfile.lock", "poetry.lock"]
+        for fname in forbidden_files:
+            fpath = os.path.join(project_root, fname)
+            self.assertFalse(
+                os.path.exists(fpath),
+                f"Forbidden dependency manifest file found: {fname}"
+            )
+
+
+class TestCLIIntegration(unittest.TestCase):
+    """End-to-end integration execution tests for CLI-KDG entry points."""
+
+    def test_cli_executable_direct(self):
+        """Verify direct execution via python3 cli_kdg.py run <target>."""
+        script_path = os.path.join(os.path.dirname(__file__), "cli_kdg.py")
+        fixture = os.path.join(FIXTURES_DIR, "success.py")
+        res = execute_target(PYTHON_BIN, [script_path, "run", PYTHON_BIN, fixture])
+        self.assertTrue(res.is_success())
+        self.assertIn("CLI-KDG v1.1", res.stdout)
+        self.assertIn("STATUS: SUCCESS", res.stdout)
+
+    def test_cli_module_invocation(self):
+        """Verify python module invocation via python3 -m cli_kdg run <target>."""
+        fixture = os.path.join(FIXTURES_DIR, "success.py")
+        res = execute_target(PYTHON_BIN, ["-m", "cli_kdg", "run", PYTHON_BIN, fixture])
+        self.assertTrue(res.is_success())
+        self.assertIn("STATUS: SUCCESS", res.stdout)
+
+    def test_cli_short_timeout_flag(self):
+        """Verify short timeout flag '-t' on slow process execution."""
+        fixture = os.path.join(FIXTURES_DIR, "slow.py")
+        res = execute_target(PYTHON_BIN, ["-m", "cli_kdg", "run", "-t", "0.5", PYTHON_BIN, fixture])
+        self.assertFalse(res.is_success())
+        self.assertIn("STATUS: TIMEOUT", res.stdout)
+
+    def test_cli_option_separator(self):
+        """Verify option separator '--' behavior."""
+        fixture = os.path.join(FIXTURES_DIR, "success.py")
+        res = execute_target(PYTHON_BIN, ["-m", "cli_kdg", "run", "--timeout", "5", "--", PYTHON_BIN, fixture])
+        self.assertTrue(res.is_success())
+        self.assertIn("STATUS: SUCCESS", res.stdout)
+
+    def test_cli_controlled_error_handling(self):
+        """Verify missing argument error yields clean output without Python traceback."""
+        res = execute_target(PYTHON_BIN, ["-m", "cli_kdg", "run"])
+        self.assertEqual(res.exit_code, 2)
+        self.assertIn("CLI-KDG error:", res.stderr)
+        self.assertNotIn("Traceback (most recent call last)", res.stderr)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+

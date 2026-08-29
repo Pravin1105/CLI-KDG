@@ -1,0 +1,50 @@
+name: CLI-KDG Release Packaging
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Build Release Package & Publish GitHub Release
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run Test Suite Verification
+        run: |
+          python3 run_tests.py
+
+      - name: Prepare Release Archives & Checksums
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          ARCHIVE_TAR="cli-kdg-${TAG_NAME}.tar.gz"
+          ARCHIVE_ZIP="cli-kdg-${TAG_NAME}.zip"
+          
+          # Create clean archive without git metadata
+          git archive --format=tar.gz --prefix=cli-kdg-${TAG_NAME}/ -o "${ARCHIVE_TAR}" HEAD
+          git archive --format=zip --prefix=cli-kdg-${TAG_NAME}/ -o "${ARCHIVE_ZIP}" HEAD
+
+          # Generate SHA-256 checksum file
+          sha256sum "${ARCHIVE_TAR}" "${ARCHIVE_ZIP}" > checksums.txt
+          cat checksums.txt
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            cli-kdg-*.tar.gz
+            cli-kdg-*.zip
+            checksums.txt
+          generate_release_notes: true
