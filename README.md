@@ -321,7 +321,7 @@ Every invocation pattern supported by `snapshot` and `replay` subcommands:
 | **Replay with Timeout Limit** | `python3 cli_kdg.py replay --timeout 5.0 v1_base.json <target>` | Enforces a `5.0` second limit per replayed test case execution. |
 | **Replay Direct Execution** | `./cli_kdg.py replay v1_base.json <target_v2>` | Direct executable script invocation of replay engine. |
 | **Replay Python Module** | `python3 -m cli_kdg replay v1_base.json <target_v2>` | Module invocation of replay engine. |
-| **Automated Test Suite** | `python3 run_tests.py` | Runs full 35-test zero-dependency automated unit, AST import audit, and integration test suite. |
+| **Automated Test Suite** | `python3 run_tests.py` | Runs full 38-test zero-dependency automated unit, AST import audit, exit code, and integration test suite. |
 
 ### 3. Versioned Snapshot Schema Format (`snapshot.py`)
 

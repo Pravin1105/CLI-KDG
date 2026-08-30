@@ -35,6 +35,12 @@ Manifest poetry.lock         : ABSENT (PASSED)
 
 test_cli_controlled_error_handling (__main__.TestCLIIntegration) ... ok
 test_cli_executable_direct (__main__.TestCLIIntegration) ... ok
+test_cli_exit_code_one (__main__.TestCLIIntegration)
+Verify exit code 1 on target execution failure. ... ok
+test_cli_exit_code_two (__main__.TestCLIIntegration)
+Verify exit code 2 on CLI-KDG syntax invocation error. ... ok
+test_cli_exit_code_zero (__main__.TestCLIIntegration)
+Verify exit code 0 on clean target execution. ... ok
 test_cli_module_invocation (__main__.TestCLIIntegration) ... ok
 test_cli_option_separator (__main__.TestCLIIntegration) ... ok
 test_cli_short_timeout_flag (__main__.TestCLIIntegration) ... ok
@@ -70,7 +76,7 @@ test_snapshot_create_save_load (__main__.TestSnapshotManager) ... ok
 test_unsupported_snapshot_version (__main__.TestSnapshotManager) ... ok
 
 ----------------------------------------------------------------------
-Ran 35 tests in 2.368s
+Ran 38 tests in 2.466s
 
 OK
 
